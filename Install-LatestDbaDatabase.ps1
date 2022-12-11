@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
 Installs or updates DBA database to the latest version
- 
+
 .DESCRIPTION
-This function will create a DBA database if it does not already exist, and install the latest code. 
+This function will create a DBA database if it does not already exist, and install the latest code.
 
 This depends on having the full, latest version of the full repo https://github.com/amtwo/dba-database
 
@@ -22,10 +22,10 @@ a different name, specify it here.
 By default, this installer assumes that you've got the open source stuff in the right spot. If you don't
 want to install those packages, just pass in $true for this, and it'll skip all of them.
 
- 
+
 .EXAMPLE
 Install-LatestDbaDatabase AM2Prod
- 
+
 
 .NOTES
 AUTHOR: Andy Mallon
@@ -33,7 +33,7 @@ DATE: 20170922
 COPYRIGHT: This code is licensed as part of Andy Mallon's DBA Database. https://github.com/amtwo/dba-database/blob/master/LICENSE
 ©2014-2020 ● Andy Mallon ● am2.co
 #>
- 
+
 [CmdletBinding()]
 param (
     [Parameter(Position=0,mandatory=$true)]
@@ -41,12 +41,16 @@ param (
     [Parameter(Position=1,mandatory=$false)]
         [string]$DatabaseName = 'DBA',
     [Parameter(Position=2,mandatory=$false)]
-        [boolean]$SkipOSS = $false
+        [boolean]$SkipOSS = $false,
+    [Parameter(Position=3,mandatory=$false)]
+        [string]$Username = '',
+    [Parameter(Position=4,mandatory=$false)]
+        [string]$Password = '',
     )
 
 #Get Time Zone info from the OS. We'll use this to populate a table later
-$TimeZoneInfo = Get-TimeZone -ListAvailable | 
-    Add-Member -MemberType AliasProperty -Name TimeZoneId -Value Id -PassThru | Select-Object TimeZoneId, DisplayName, StandardName, DaylightName, SupportsDaylightSavingTime
+# $TimeZoneInfo = Get-TimeZone -ListAvailable |
+#     Add-Member -MemberType AliasProperty -Name TimeZoneId -Value Id -PassThru | Select-Object TimeZoneId, DisplayName, StandardName, DaylightName, SupportsDaylightSavingTime
 
 # Process servers in a loop. I could do this parallel, but doing it this way is fast enough for me.
 foreach($instance in $InstanceName) {
@@ -56,7 +60,7 @@ foreach($instance in $InstanceName) {
     #Create the database - SQL Script contains logic to be conditional & not clobber existing database
     Write-Verbose "`n        ***Creating Database if necessary `n"
     try{
-        Invoke-Sqlcmd -ServerInstance $instance -Database master -InputFile .\create-database.sql -Variable "DbName=$($DatabaseName)"
+        Invoke-Sqlcmd -ServerInstance $instance -Database master -Username $Username -Password $Password -InputFile .\create-database.sql -Variable "DbName=$($DatabaseName)"
     }
     catch{
         Write-Error -Message "Failed creating DBA Database" -ErrorAction Stop
@@ -74,7 +78,7 @@ foreach($instance in $InstanceName) {
         Write-Verbose "Populating dbo.TimeZones"
         Write-SqlTableData  -ServerInstance $instance -Database $DatabaseName -SchemaName "dbo" -Table "TimeZones" -InputData $TimeZoneInfo
     }
-    
+
 
     #Then views
     Write-Verbose "`n        ***Creating/Updating Views `n"
